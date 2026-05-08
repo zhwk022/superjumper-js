@@ -63,11 +63,16 @@ const GAME_STATE = {
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
+function dataUrl(path) {
+  return new URL(path, DATA_BASE_URL).href;
+}
+
 const backgroundImg = new Image();
-backgroundImg.src = "../assets/data/background.png";
+backgroundImg.src = dataUrl("background.png");
 
 const itemsImg = new Image();
-itemsImg.src = "../assets/data/items.png";
+itemsImg.src = dataUrl("items.png");
 
 const atlas = {
   ready: { x: 320, y: 224, w: 192, h: 32 },
@@ -103,11 +108,11 @@ const atlas = {
 };
 
 const sounds = {
-  jump: new Audio("../assets/data/jump.wav"),
-  highJump: new Audio("../assets/data/highjump.wav"),
-  hit: new Audio("../assets/data/hit.wav"),
-  coin: new Audio("../assets/data/coin.wav"),
-  music: new Audio("../assets/data/music.mp3"),
+  jump: new Audio(dataUrl("jump.wav")),
+  highJump: new Audio(dataUrl("highjump.wav")),
+  hit: new Audio(dataUrl("hit.wav")),
+  coin: new Audio(dataUrl("coin.wav")),
+  music: new Audio(dataUrl("music.mp3")),
 };
 sounds.music.loop = true;
 sounds.music.volume = 0.4;

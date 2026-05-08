@@ -18,13 +18,80 @@ const GAME = { ready: "ready", running: "running", paused: "paused", over: "over
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const bg = new Image();
-bg.src = "../assets/data/background.png";
-const items = new Image();
-items.src = "../assets/data/items.png";
+const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
+function dataUrl(path) {
+  return new URL(path, DATA_BASE_URL).href;
+}
+
+let bg;
+let items;
+
+const criticalAssets = { status: "loading", total: 2, loaded: 0, error: null, startedAt: 0 };
+
+function loadImage(img, src, label, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    let timer = null;
+
+    const onLoad = () => {
+      if (done) return;
+      criticalAssets.loaded += 1;
+      finish();
+    };
+    const onError = () => {
+      if (done) return;
+      finish({ type: "error", label, src });
+    };
+
+    const cleanup = () => {
+      img.removeEventListener("load", onLoad);
+      img.removeEventListener("error", onError);
+    };
+
+    const finish = (err) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      if (timer) clearTimeout(timer);
+      if (err) reject(err);
+      else resolve();
+    };
+
+    img.addEventListener("load", onLoad);
+    img.addEventListener("error", onError);
+
+    timer = setTimeout(() => finish({ type: "timeout", label, src }), timeoutMs);
+    img.src = src;
+  });
+}
+
+function beginCriticalAssetLoading() {
+  criticalAssets.status = "loading";
+  criticalAssets.loaded = 0;
+  criticalAssets.error = null;
+  criticalAssets.startedAt = performance.now();
+
+  bg = new Image();
+  items = new Image();
+
+  const bgSrc = dataUrl("background.png");
+  const itemsSrc = dataUrl("items.png");
+
+  Promise.all([
+    loadImage(bg, bgSrc, "background.png"),
+    loadImage(items, itemsSrc, "items.png"),
+  ]).then(() => {
+    criticalAssets.status = "ready";
+  }).catch((err) => {
+    criticalAssets.status = "error";
+    criticalAssets.error = err;
+  });
+}
+
+beginCriticalAssetLoading();
 const helps = [1, 2, 3, 4, 5].map((i) => {
   const img = new Image();
-  img.src = `../assets/data/help${i}.png`;
+  img.src = dataUrl(`help${i}.png`);
   return img;
 });
 
@@ -70,12 +137,12 @@ const atlas = {
 };
 
 const audios = {
-  jump: new Audio("../assets/data/jump.wav"),
-  highJump: new Audio("../assets/data/highjump.wav"),
-  hit: new Audio("../assets/data/hit.wav"),
-  coin: new Audio("../assets/data/coin.wav"),
-  click: new Audio("../assets/data/click.wav"),
-  music: new Audio("../assets/data/music.mp3"),
+  jump: new Audio(dataUrl("jump.wav")),
+  highJump: new Audio(dataUrl("highjump.wav")),
+  hit: new Audio(dataUrl("hit.wav")),
+  coin: new Audio(dataUrl("coin.wav")),
+  click: new Audio(dataUrl("click.wav")),
+  music: new Audio(dataUrl("music.mp3")),
 };
 audios.music.loop = true;
 audios.music.volume = 0.45;
@@ -335,6 +402,11 @@ function updateRunning(dt) {
 }
 
 function update() {
+  if (criticalAssets.status !== "ready") {
+    if (criticalAssets.status === "error" && input.pointer.justDown) beginCriticalAssetLoading();
+    return;
+  }
+
   if (app === APP.menu) {
     if (!input.pointer.justDown) return;
     const p = input.pointer;
@@ -454,15 +526,96 @@ function drawWorld(region, x, y, w, h, flipX = false) {
   drawRegion(region, p.x - sw / 2, p.y - sh / 2, sw, sh, flipX);
 }
 function drawBg() {
-  if (bg.complete) ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-  else {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (bg.complete) {
+    const imgRatio = bg.width / bg.height;
+    const canvasRatio = canvas.width / canvas.height;
+    let sx = 0;
+    let sy = 0;
+    let sw = bg.width;
+    let sh = bg.height;
+
+    if (imgRatio > canvasRatio) {
+      sw = bg.height * canvasRatio;
+      sx = (bg.width - sw) / 2;
+    } else {
+      sh = bg.width / canvasRatio;
+      sy = (bg.height - sh) / 2;
+    }
+
+    ctx.drawImage(bg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  } else {
     ctx.fillStyle = "#2f9cf5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 }
 
+function drawCriticalOverlay() {
+  ctx.save();
+  ctx.fillStyle = "#000b";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const boxW = Math.min(300, canvas.width - 40);
+  const boxH = criticalAssets.status === "error" ? 220 : 110;
+  const x = (canvas.width - boxW) / 2;
+  const y = (canvas.height - boxH) / 2;
+
+  ctx.fillStyle = "#111c";
+  ctx.fillRect(x, y, boxW, boxH);
+  ctx.strokeStyle = "#ffffff33";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, boxW - 2, boxH - 2);
+
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+
+  if (criticalAssets.status === "loading") {
+    ctx.font = "bold 22px sans-serif";
+    ctx.fillText("加载中...", canvas.width / 2, y + 44);
+    ctx.font = "16px sans-serif";
+    ctx.fillText(`正在加载关键资源 (${criticalAssets.loaded}/${criticalAssets.total})`, canvas.width / 2, y + 74);
+    ctx.font = "14px sans-serif";
+    ctx.fillText("请稍候", canvas.width / 2, y + 96);
+    ctx.restore();
+    return;
+  }
+
+  const err = criticalAssets.error || {};
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillStyle = "#ffdddd";
+  ctx.fillText("资源加载失败", canvas.width / 2, y + 36);
+
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "start";
+  ctx.font = "13px sans-serif";
+  const lines = [
+    `失败资源：${err.label || "未知"}`,
+    `地址：${err.src || "未知"}`,
+    "排查建议：",
+    "1) 打开浏览器 Network/Console 看是否 404/CORS",
+    "2) 确认部署 base 路径/静态资源路径配置正确",
+    "3) 确认文件名大小写一致（items.png/background.png）",
+    "4) 尝试强制刷新或清理缓存后重试",
+    "点击任意位置重试",
+  ];
+  let ty = y + 62;
+  const tx = x + 14;
+  for (const line of lines) {
+    ctx.fillText(line, tx, ty);
+    ty += 18;
+  }
+
+  ctx.restore();
+}
+
 function draw() {
   drawBg();
+
+  if (criticalAssets.status !== "ready") {
+    drawCriticalOverlay();
+    return;
+  }
 
   if (app === APP.menu) {
     drawUi(atlas.logo, 23, 328, 274, 142);

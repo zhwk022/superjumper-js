@@ -1,0 +1,6 @@
+- [x] GitHub Pages 子路径下 `assets/data/background.png` 与 `assets/data/items.png` 可正常加载（200）
+- [x] 首次打开未加载完成时显示 Loading，而不是纯色蓝屏
+- [x] 关键资源加载失败时显示错误覆盖层与排查提示
+- [x] 加载完成后主菜单可见且按钮可用（Play/Help/Highscores/Sound）
+- [x] 进入游戏可正常渲染并可暂停/退出
+- [x] 过关剧情页仍可进入并点击推进
