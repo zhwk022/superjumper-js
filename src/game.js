@@ -1,3 +1,4 @@
+// Legacy prototype retained for reference. The active entry point is `src/app.js`.
 const WORLD_WIDTH = 10;
 const WORLD_HEIGHT = 15 * 20;
 const FRUSTUM_WIDTH = 10;
