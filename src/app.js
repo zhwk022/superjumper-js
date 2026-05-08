@@ -18,21 +18,24 @@ const GAME = { ready: "ready", running: "running", paused: "paused", over: "over
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-function syncViewportVars() {
-  const viewport = window.visualViewport;
-  const w = Math.max(
-    viewport ? viewport.width : 0,
-    window.innerWidth || 0,
-    document.documentElement.clientWidth || 0
-  );
-  const h = Math.max(
-    viewport ? viewport.height : 0,
-    window.innerHeight || 0,
-    document.documentElement.clientHeight || 0
-  );
+const UI = { w: 320, h: 480, scale: 1, x: 0, y: 0 };
 
-  document.documentElement.style.setProperty("--vvw", `${Math.ceil(w)}px`);
-  document.documentElement.style.setProperty("--vvh", `${Math.ceil(h)}px`);
+function updateUiViewport() {
+  const scale = Math.min(canvas.width / UI.w, canvas.height / UI.h);
+  UI.scale = scale;
+  UI.x = (canvas.width - UI.w * scale) / 2;
+  UI.y = (canvas.height - UI.h * scale) / 2;
+}
+
+function uiPointer(p) {
+  const px = p.x;
+  const pyTop = canvas.height - p.y;
+  let ux = (px - UI.x) / UI.scale;
+  let uyTop = (pyTop - UI.y) / UI.scale;
+  if (!Number.isFinite(ux) || !Number.isFinite(uyTop) || UI.scale <= 0) return { x: 0, y: 0 };
+  ux = Math.max(0, Math.min(UI.w, ux));
+  uyTop = Math.max(0, Math.min(UI.h, uyTop));
+  return { x: ux, y: UI.h - uyTop };
 }
 
 function resizeCanvas() {
@@ -46,9 +49,10 @@ function resizeCanvas() {
     canvas.width = nextWidth;
     canvas.height = nextHeight;
   }
+
+  updateUiViewport();
 }
 
-syncViewportVars();
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 window.visualViewport?.addEventListener("resize", resizeCanvas);
@@ -57,11 +61,6 @@ if ("ResizeObserver" in window) {
   const ro = new ResizeObserver(() => resizeCanvas());
   ro.observe(canvas);
 }
-
-window.addEventListener("resize", syncViewportVars);
-window.addEventListener("orientationchange", syncViewportVars);
-window.visualViewport?.addEventListener("resize", syncViewportVars);
-window.visualViewport?.addEventListener("scroll", syncViewportVars);
 
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
 function dataUrl(path) {
@@ -454,7 +453,7 @@ function update() {
 
   if (app === APP.menu) {
     if (!input.pointer.justDown) return;
-    const p = input.pointer;
+    const p = uiPointer(input.pointer);
     if (hit(menuBounds.play, p.x, p.y)) {
       play(audios.click);
       resetGame();
@@ -476,18 +475,24 @@ function update() {
   }
 
   if (app === APP.help) {
-    if (input.pointer.justDown && hit({ x: 256, y: 0, w: 64, h: 64 }, input.pointer.x, input.pointer.y)) {
-      play(audios.click);
-      helpIdx += 1;
-      if (helpIdx >= helps.length) app = APP.menu;
+    if (input.pointer.justDown) {
+      const p = uiPointer(input.pointer);
+      if (hit({ x: 256, y: 0, w: 64, h: 64 }, p.x, p.y)) {
+        play(audios.click);
+        helpIdx += 1;
+        if (helpIdx >= helps.length) app = APP.menu;
+      }
     }
     return;
   }
 
   if (app === APP.highscores) {
-    if (input.pointer.justDown && hit({ x: 0, y: 0, w: 64, h: 64 }, input.pointer.x, input.pointer.y)) {
-      play(audios.click);
-      app = APP.menu;
+    if (input.pointer.justDown) {
+      const p = uiPointer(input.pointer);
+      if (hit({ x: 0, y: 0, w: 64, h: 64 }, p.x, p.y)) {
+        play(audios.click);
+        app = APP.menu;
+      }
     }
     return;
   }
@@ -510,12 +515,15 @@ function update() {
       return;
     }
     if (game.state === GAME.running) {
-      if (input.pointer.justDown && hit(pauseBtn, input.pointer.x, input.pointer.y)) {
-        play(audios.click);
-        game.state = GAME.paused;
-      } else {
-        updateRunning(deltaSec);
+      if (input.pointer.justDown) {
+        const p = uiPointer(input.pointer);
+        if (hit(pauseBtn, p.x, p.y)) {
+          play(audios.click);
+          game.state = GAME.paused;
+          return;
+        }
       }
+      updateRunning(deltaSec);
       if (game.state === GAME.over && !game.handledOver) {
         game.handledOver = true;
         const isNew = addHighscore(game.world.score);
@@ -525,10 +533,11 @@ function update() {
     }
     if (game.state === GAME.paused) {
       if (!input.pointer.justDown) return;
-      if (hit(resumeBtn, input.pointer.x, input.pointer.y)) {
+      const p = uiPointer(input.pointer);
+      if (hit(resumeBtn, p.x, p.y)) {
         play(audios.click);
         game.state = GAME.running;
-      } else if (hit(quitBtn, input.pointer.x, input.pointer.y)) {
+      } else if (hit(quitBtn, p.x, p.y)) {
         play(audios.click);
         app = APP.menu;
         resetGame();
@@ -562,7 +571,9 @@ function drawRegion(region, x, y, w, h, flipX = false) {
   ctx.restore();
 }
 function drawUi(region, x, y, w, h, flipX = false) {
-  drawRegion(region, x, canvas.height - y - h, w, h, flipX);
+  const dx = UI.x + x * UI.scale;
+  const dy = UI.y + (UI.h - y - h) * UI.scale;
+  drawRegion(region, dx, dy, w * UI.scale, h * UI.scale, flipX);
 }
 function drawWorld(region, x, y, w, h, flipX = false) {
   const p = worldToScreen(x, y);
@@ -671,7 +682,9 @@ function draw() {
   }
 
   if (app === APP.help) {
-    if (helps[helpIdx]?.complete) ctx.drawImage(helps[helpIdx], 0, 0, canvas.width, canvas.height);
+    if (helps[helpIdx]?.complete) {
+      ctx.drawImage(helps[helpIdx], UI.x, UI.y, UI.w * UI.scale, UI.h * UI.scale);
+    }
     drawUi(atlas.arrow, 256, 0, 64, 64, true);
     return;
   }
@@ -680,10 +693,10 @@ function draw() {
     drawUi(atlas.highTitle, 10, 344, 300, 33);
     drawUi(atlas.arrow, 0, 0, 64, 64);
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 24px monospace";
+    ctx.font = `bold ${Math.max(12, Math.round(24 * UI.scale))}px monospace`;
     let y = 160;
     for (let i = 4; i >= 0; i--) {
-      ctx.fillText(`${i + 1}. ${settings.highscores[i]}`, 94, y);
+      ctx.fillText(`${i + 1}. ${settings.highscores[i]}`, UI.x + 94 * UI.scale, UI.y + y * UI.scale);
       y += 30;
     }
     return;
@@ -694,11 +707,11 @@ function draw() {
     drawUi(atlas.bobFall[0], 120, 200, 32, 32);
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.font = "bold 18px sans-serif";
+    ctx.font = `bold ${Math.max(12, Math.round(18 * UI.scale))}px sans-serif`;
     const msg = winStoryMessages[winStoryIdx];
-    ctx.fillText(msg, canvas.width / 2, 90);
-    ctx.font = "14px sans-serif";
-    ctx.fillText("点击继续", canvas.width / 2, 430);
+    ctx.fillText(msg, UI.x + (UI.w * UI.scale) / 2, UI.y + 90 * UI.scale);
+    ctx.font = `${Math.max(10, Math.round(14 * UI.scale))}px sans-serif`;
+    ctx.fillText("点击继续", UI.x + (UI.w * UI.scale) / 2, UI.y + 430 * UI.scale);
     ctx.textAlign = "start";
     return;
   }
@@ -718,8 +731,8 @@ function draw() {
   drawWorld(br, b.x, b.y, 1, 1, b.vx < 0);
 
   ctx.fillStyle = "#fff";
-  ctx.font = "bold 20px sans-serif";
-  ctx.fillText(game.scoreLabel, 16, 28);
+  ctx.font = `bold ${Math.max(12, Math.round(20 * UI.scale))}px sans-serif`;
+  ctx.fillText(game.scoreLabel, UI.x + 16 * UI.scale, UI.y + 28 * UI.scale);
 
   if (game.state === GAME.ready) drawUi(atlas.ready, 64, 224, 192, 32);
   if (game.state === GAME.running) drawUi(atlas.pause, 256, 416, 64, 64);
@@ -729,10 +742,11 @@ function draw() {
     ctx.fillStyle = "#0009";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 24px sans-serif";
-    ctx.fillText("YOU WIN!", 104, 220);
-    ctx.font = "16px sans-serif";
-    ctx.fillText("点击返回主菜单", 104, 250);
+    ctx.textAlign = "start";
+    ctx.font = `bold ${Math.max(12, Math.round(24 * UI.scale))}px sans-serif`;
+    ctx.fillText("YOU WIN!", UI.x + 104 * UI.scale, UI.y + 220 * UI.scale);
+    ctx.font = `${Math.max(10, Math.round(16 * UI.scale))}px sans-serif`;
+    ctx.fillText("点击返回主菜单", UI.x + 104 * UI.scale, UI.y + 250 * UI.scale);
   }
 }
 
