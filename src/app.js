@@ -20,19 +20,30 @@ const ctx = canvas.getContext("2d");
 
 function resizeCanvas() {
   const viewport = window.visualViewport;
-  const cssWidth = Math.max(1, Math.round(viewport ? viewport.width : window.innerWidth));
-  const cssHeight = Math.max(1, Math.round(viewport ? viewport.height : window.innerHeight));
+  const rawWidth = Math.max(
+    viewport ? viewport.width : 0,
+    window.innerWidth || 0,
+    document.documentElement.clientWidth || 0
+  );
+  const rawHeight = Math.max(
+    viewport ? viewport.height : 0,
+    window.innerHeight || 0,
+    document.documentElement.clientHeight || 0
+  );
+  const cssWidth = Math.max(1, Math.ceil(rawWidth));
+  const cssHeight = Math.max(1, Math.ceil(rawHeight));
   const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-  const nextWidth = Math.round(cssWidth * dpr);
-  const nextHeight = Math.round(cssHeight * dpr);
+  const nextWidth = Math.ceil(cssWidth * dpr);
+  const nextHeight = Math.ceil(cssHeight * dpr);
 
   if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
     canvas.width = nextWidth;
     canvas.height = nextHeight;
   }
 
-  canvas.style.width = `${cssWidth}px`;
-  canvas.style.height = `${cssHeight}px`;
+  // Add 1 CSS px overdraw to hide fractional viewport seams in mobile webviews.
+  canvas.style.width = `${cssWidth + 1}px`;
+  canvas.style.height = `${cssHeight + 1}px`;
 }
 
 resizeCanvas();
