@@ -563,6 +563,7 @@ function drawBg() {
   if (bg.complete) {
     const imgRatio = bg.width / bg.height;
     const canvasRatio = canvas.width / canvas.height;
+    const overscan = Math.max(2, Math.ceil(Math.max(canvas.width, canvas.height) * 0.01));
     let sx = 0;
     let sy = 0;
     let sw = bg.width;
@@ -576,7 +577,20 @@ function drawBg() {
       sy = (bg.height - sh) / 2;
     }
 
-    ctx.drawImage(bg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(
+      bg,
+      sx,
+      sy,
+      sw,
+      sh,
+      -overscan,
+      -overscan,
+      canvas.width + overscan * 2,
+      canvas.height + overscan * 2
+    );
+    ctx.restore();
   } else {
     ctx.fillStyle = "#2f9cf5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
