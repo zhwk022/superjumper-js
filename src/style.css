@@ -23,10 +23,10 @@ body {
 
 .wrap {
   position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  top: 0;
+  left: 0;
+  width: var(--vvw, 100vw);
+  height: var(--vvh, 100dvh);
   background: #000;
 }
 

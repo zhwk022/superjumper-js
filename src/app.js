@@ -18,6 +18,23 @@ const GAME = { ready: "ready", running: "running", paused: "paused", over: "over
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+function syncViewportVars() {
+  const viewport = window.visualViewport;
+  const w = Math.max(
+    viewport ? viewport.width : 0,
+    window.innerWidth || 0,
+    document.documentElement.clientWidth || 0
+  );
+  const h = Math.max(
+    viewport ? viewport.height : 0,
+    window.innerHeight || 0,
+    document.documentElement.clientHeight || 0
+  );
+
+  document.documentElement.style.setProperty("--vvw", `${Math.ceil(w)}px`);
+  document.documentElement.style.setProperty("--vvh", `${Math.ceil(h)}px`);
+}
+
 function resizeCanvas() {
   // Use actual rendered size as the single source of truth to avoid CSS/JS drift.
   const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
@@ -31,6 +48,7 @@ function resizeCanvas() {
   }
 }
 
+syncViewportVars();
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 window.visualViewport?.addEventListener("resize", resizeCanvas);
@@ -39,6 +57,11 @@ if ("ResizeObserver" in window) {
   const ro = new ResizeObserver(() => resizeCanvas());
   ro.observe(canvas);
 }
+
+window.addEventListener("resize", syncViewportVars);
+window.addEventListener("orientationchange", syncViewportVars);
+window.visualViewport?.addEventListener("resize", syncViewportVars);
+window.visualViewport?.addEventListener("scroll", syncViewportVars);
 
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
 function dataUrl(path) {
@@ -551,31 +574,17 @@ function drawBg() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (bg.complete) {
-    const imgRatio = bg.width / bg.height;
-    const canvasRatio = canvas.width / canvas.height;
+    // Follow the original libGDX behavior: draw background to full viewport.
     // Keep a tiny safety overdraw to hide WebView fractional edge seams.
     const overscan = Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 2));
-    let sx = 0;
-    let sy = 0;
-    let sw = bg.width;
-    let sh = bg.height;
-
-    if (imgRatio > canvasRatio) {
-      sw = bg.height * canvasRatio;
-      sx = (bg.width - sw) / 2;
-    } else {
-      sh = bg.width / canvasRatio;
-      sy = (bg.height - sh) / 2;
-    }
-
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(
       bg,
-      sx,
-      sy,
-      sw,
-      sh,
+      0,
+      0,
+      bg.width,
+      bg.height,
       -overscan,
       -overscan,
       canvas.width + overscan * 2,
