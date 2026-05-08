@@ -19,9 +19,11 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resizeCanvas() {
+  // Use actual rendered size as the single source of truth to avoid CSS/JS drift.
   const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-  const nextWidth = Math.ceil(canvas.clientWidth * dpr);
-  const nextHeight = Math.ceil(canvas.clientHeight * dpr);
+  const rect = canvas.getBoundingClientRect();
+  const nextWidth = Math.max(1, Math.ceil(rect.width * dpr));
+  const nextHeight = Math.max(1, Math.ceil(rect.height * dpr));
 
   if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
     canvas.width = nextWidth;
@@ -32,6 +34,11 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 window.visualViewport?.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", resizeCanvas);
+if ("ResizeObserver" in window) {
+  const ro = new ResizeObserver(() => resizeCanvas());
+  ro.observe(canvas);
+}
 
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
 function dataUrl(path) {
@@ -546,7 +553,8 @@ function drawBg() {
   if (bg.complete) {
     const imgRatio = bg.width / bg.height;
     const canvasRatio = canvas.width / canvas.height;
-    const overscan = Math.max(2, Math.ceil(Math.max(canvas.width, canvas.height) * 0.01));
+    // Keep a tiny safety overdraw to hide WebView fractional edge seams.
+    const overscan = Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 2));
     let sx = 0;
     let sy = 0;
     let sw = bg.width;
