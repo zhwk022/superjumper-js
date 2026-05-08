@@ -585,17 +585,17 @@ function drawBg() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (bg.complete) {
-    // Follow the original libGDX behavior: draw background to full viewport.
-    // Keep a tiny safety overdraw to hide WebView fractional edge seams.
+    // Match libGDX: Assets.backgroundRegion uses only the 320x480 content area
+    // from the 512x512 texture. Drawing the whole texture shows unused padding.
     const overscan = Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 2));
     ctx.save();
-    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       bg,
       0,
       0,
-      bg.width,
-      bg.height,
+      320,
+      480,
       -overscan,
       -overscan,
       canvas.width + overscan * 2,
