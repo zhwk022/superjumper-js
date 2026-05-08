@@ -18,6 +18,27 @@ const GAME = { ready: "ready", running: "running", paused: "paused", over: "over
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+function resizeCanvas() {
+  const viewport = window.visualViewport;
+  const cssWidth = Math.max(1, Math.round(viewport ? viewport.width : window.innerWidth));
+  const cssHeight = Math.max(1, Math.round(viewport ? viewport.height : window.innerHeight));
+  const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  const nextWidth = Math.round(cssWidth * dpr);
+  const nextHeight = Math.round(cssHeight * dpr);
+
+  if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+    canvas.width = nextWidth;
+    canvas.height = nextHeight;
+  }
+
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+}
+
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+window.visualViewport?.addEventListener("resize", resizeCanvas);
+
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
 function dataUrl(path) {
   return new URL(path, DATA_BASE_URL).href;
