@@ -1,4 +1,4 @@
-import { beginCriticalAssetLoading, criticalAssets, audios } from "./assets.js";
+import { audios, beginCriticalAssetLoading, criticalAssets, ensureHelpImage, preloadHelpImages } from "./assets.js";
 import { APP, GAME, menuBounds, pauseBtn, quitBtn, resumeBtn, UI, winStoryMessages } from "./config.js";
 import { enterWinStory, resetGame, saveCurrentSettings } from "./app-state.js";
 import { updateRunning } from "./game-logic.js";
@@ -26,6 +26,7 @@ export function updateScreens({ state, input, canvas, cam, deltaSec, helps, play
     } else if (hit(menuBounds.help, pointer.x, pointer.y)) {
       playSound(audios.click);
       state.helpIdx = 0;
+      preloadHelpImages(0, 2);
       state.app = APP.help;
     } else if (hit(menuBounds.sound, pointer.x, pointer.y)) {
       playSound(audios.click);
@@ -37,12 +38,17 @@ export function updateScreens({ state, input, canvas, cam, deltaSec, helps, play
   }
 
   if (state.app === APP.help) {
+    preloadHelpImages(state.helpIdx, 2);
     if (input.pointer.justDown) {
       const pointer = uiPointer(input.pointer, canvas, UI);
       if (hit({ x: 256, y: 0, w: 64, h: 64 }, pointer.x, pointer.y)) {
         playSound(audios.click);
         state.helpIdx += 1;
-        if (state.helpIdx >= helps.length) state.app = APP.menu;
+        if (state.helpIdx >= helps.length) {
+          state.app = APP.menu;
+        } else {
+          ensureHelpImage(state.helpIdx);
+        }
       }
     }
     return;

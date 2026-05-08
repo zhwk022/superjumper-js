@@ -1,0 +1,15 @@
+{
+  "name": "superjumper-js",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "python3 -m http.server 8080",
+    "serve:docs": "python3 -m http.server 8080 -d docs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.5",
+    "sharp": "^0.34.2"
+  }
+}

@@ -16,6 +16,10 @@ pnpm-debug.log*
 .vscode/
 .idea/
 
+# Node
+node_modules/
+npm-debug.log*
+
 # Python cache (if using python -m http.server helpers/scripts)
 __pycache__/
 *.pyc

@@ -6,7 +6,7 @@
 
 - GitHub Pages: `https://<你的用户名>.github.io/superjumper-js/`
 
-> 发布后把上面链接替换为你的真实地址。
+> 线上建议直接发布 `docs/` 目录中的压缩构建产物，源码继续保留在 `src/` 和 `assets/` 里进行编辑。
 
 ## 功能
 
@@ -15,9 +15,9 @@
 - 结尾页：过关后剧情对白（点击推进）
 - 本地存档：声音开关 + 前 5 名高分（`localStorage`）
 
-## 本地运行
+## 本地开发
 
-在项目根目录启动静态服务：
+源码开发模式继续直接运行未压缩文件，在项目根目录启动静态服务：
 
 ```bash
 python3 -m http.server 8080
@@ -39,6 +39,33 @@ http://localhost:8080/
   - `Help` 帮助页
   - 左下角音量图标切换声音
 
+## 生产构建
+
+首次使用先安装依赖：
+
+```bash
+npm install
+```
+
+构建压缩后的发布产物：
+
+```bash
+npm run build
+```
+
+构建结果输出到：
+
+```text
+docs/
+```
+
+构建后：
+
+- `src/` 中源码仍保持未压缩，便于继续编辑
+- `docs/assets/app.min.js` 为压缩后的线上脚本
+- `docs/assets/style.min.css` 为压缩后的线上样式
+- `docs/assets/data/` 为发布用素材副本，PNG 会做无损/近无损优化
+
 ## GitHub Pages 发布
 
 1. 推送代码到 `main` 分支：
@@ -55,7 +82,10 @@ git push -u origin main
 2. 在仓库中打开 `Settings -> Pages`
 3. `Source` 选择 `Deploy from a branch`
 4. `Branch` 选择 `main`，目录选择 `/ (root)`，保存
-5. 等待部署完成后访问：
+5. 在仓库中打开 `Settings -> Pages`
+6. `Source` 选择 `Deploy from a branch`
+7. `Branch` 选择 `main`，目录改为 `/docs`
+8. 等待部署完成后访问：
 
 ```text
 https://<你的用户名>.github.io/superjumper-js/
@@ -66,12 +96,19 @@ https://<你的用户名>.github.io/superjumper-js/
 ```text
 .
 ├── index.html
+├── docs/             # 生产构建产物（压缩后，供 GitHub Pages 使用）
+├── scripts/
+│   └── build.mjs     # 构建压缩脚本
 ├── src/
-│   ├── app.js        # 当前主入口（多界面版本）
+│   ├── app.js        # 当前源码入口（未压缩）
+│   ├── app-state.js
+│   ├── game-logic.js
+│   ├── renderer.js
+│   ├── screens.js
 │   ├── game.js       # 早期核心玩法版本（保留）
 │   └── style.css
 ├── assets/
-│   └── data/         # 原项目素材（图片、音频、字体）
+│   └── data/         # 原始素材（源码开发使用）
 └── ANALYSIS.md       # 源码分析文档
 ```
 

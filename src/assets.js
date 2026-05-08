@@ -1,4 +1,5 @@
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
+const HELP_IMAGE_COUNT = 5;
 
 export function dataUrl(path) {
   return new URL(path, DATA_BASE_URL).href;
@@ -15,12 +16,10 @@ export const criticalAssets = {
 export const images = {
   bg: new Image(),
   items: new Image(),
-  helps: [1, 2, 3, 4, 5].map((index) => {
-    const img = new Image();
-    img.src = dataUrl(`help${index}.png`);
-    return img;
-  }),
+  helps: Array.from({ length: HELP_IMAGE_COUNT }, () => new Image()),
 };
+
+const helpImageRequested = Array.from({ length: HELP_IMAGE_COUNT }, () => false);
 
 function loadImage(img, src, label, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
@@ -81,17 +80,70 @@ export function beginCriticalAssetLoading() {
     });
 }
 
+export function ensureHelpImage(index) {
+  const img = images.helps[index];
+  if (!img || helpImageRequested[index]) return img;
+
+  helpImageRequested[index] = true;
+  img.decoding = "async";
+  img.src = dataUrl(`help${index + 1}.png`);
+  return img;
+}
+
+export function preloadHelpImages(startIndex, count = 2) {
+  for (let i = startIndex; i < Math.min(images.helps.length, startIndex + count); i += 1) {
+    ensureHelpImage(i);
+  }
+}
+
 export const audios = {
-  jump: new Audio(dataUrl("jump.wav")),
-  highJump: new Audio(dataUrl("highjump.wav")),
-  hit: new Audio(dataUrl("hit.wav")),
-  coin: new Audio(dataUrl("coin.wav")),
-  click: new Audio(dataUrl("click.wav")),
-  music: new Audio(dataUrl("music.mp3")),
+  jump: "jump",
+  highJump: "highJump",
+  hit: "hit",
+  coin: "coin",
+  click: "click",
+  music: "music",
 };
 
-audios.music.loop = true;
-audios.music.volume = 0.45;
-for (const key of ["jump", "highJump", "hit", "coin", "click"]) {
-  audios[key].volume = 0.7;
+const audioElements = {
+  jump: null,
+  highJump: null,
+  hit: null,
+  coin: null,
+  click: null,
+  music: null,
+};
+
+const audioConfig = {
+  jump: { file: "jump.wav", volume: 0.7, loop: false },
+  highJump: { file: "highjump.wav", volume: 0.7, loop: false },
+  hit: { file: "hit.wav", volume: 0.7, loop: false },
+  coin: { file: "coin.wav", volume: 0.7, loop: false },
+  click: { file: "click.wav", volume: 0.7, loop: false },
+  music: { file: "music.mp3", volume: 0.45, loop: true },
+};
+
+export function ensureAudio(key) {
+  if (audioElements[key]) return audioElements[key];
+
+  const config = audioConfig[key];
+  if (!config) return null;
+
+  const audio = new Audio(dataUrl(config.file));
+  audio.volume = config.volume;
+  audio.loop = config.loop;
+  audio.preload = "none";
+  audioElements[key] = audio;
+  return audio;
+}
+
+export function ensureMusicAudio() {
+  if (audioElements.music) return audioElements.music;
+
+  const music = new Audio(dataUrl("music.m4a"));
+  music.volume = audioConfig.music.volume;
+  music.loop = audioConfig.music.loop;
+  music.preload = "none";
+  audioElements.music = music;
+  return music;
 }

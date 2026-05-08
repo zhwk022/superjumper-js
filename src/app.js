@@ -1,5 +1,5 @@
 import { createAppState } from "./app-state.js";
-import { audios, beginCriticalAssetLoading, criticalAssets, images } from "./assets.js";
+import { audios, beginCriticalAssetLoading, criticalAssets, ensureAudio, ensureMusicAudio, images } from "./assets.js";
 import { FRUSTUM_HEIGHT, FRUSTUM_WIDTH, UI, winStoryMessages } from "./config.js";
 import { renderApp } from "./renderer.js";
 import { updateScreens } from "./screens.js";
@@ -42,18 +42,20 @@ function setPointer(e) {
   input.pointer.y = canvas.height - ((e.clientY - rect.top) / rect.height) * canvas.height;
 }
 
-function play(audio) {
+function play(audioKey) {
   if (!state.settings.soundEnabled) return;
+  const audio = ensureAudio(audioKey);
+  if (!audio) return;
   audio.currentTime = 0;
   audio.play().catch(() => {});
 }
 
 function applyMusic() {
   if (!state.settings.soundEnabled) {
-    audios.music.pause();
+    audios.music?.pause();
     return;
   }
-  if (state.userInteracted) audios.music.play().catch(() => {});
+  if (state.userInteracted) ensureMusicAudio().play().catch(() => {});
 }
 
 function update() {

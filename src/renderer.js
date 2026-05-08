@@ -151,7 +151,7 @@ export function renderApp({
   }
 
   if (app === APP.help) {
-    if (helps[helpIdx]?.complete) {
+    if (helps[helpIdx]?.naturalWidth > 0) {
       ctx.drawImage(helps[helpIdx], ui.x, ui.y, ui.w * ui.scale, ui.h * ui.scale);
     }
     drawUi(ctx, canvas, images, ui, atlas.arrow, 256, 0, 64, 64, true);
