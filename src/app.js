@@ -1,5 +1,5 @@
 import { createAppState } from "./app-state.js";
-import { audios, beginCriticalAssetLoading, criticalAssets, ensureAudio, ensureMusicAudio, images } from "./assets.js";
+import { beginCriticalAssetLoading, criticalAssets, ensureAudio, ensureMusicAudio, images } from "./assets.js";
 import { FRUSTUM_HEIGHT, FRUSTUM_WIDTH, UI, winStoryMessages } from "./config.js";
 import { renderApp } from "./renderer.js";
 import { updateScreens } from "./screens.js";
@@ -46,16 +46,29 @@ function play(audioKey) {
   if (!state.settings.soundEnabled) return;
   const audio = ensureAudio(audioKey);
   if (!audio) return;
-  audio.currentTime = 0;
-  audio.play().catch(() => {});
+  try {
+    audio.currentTime = 0;
+  } catch {}
+
+  try {
+    const result = audio.play();
+    if (result?.catch) result.catch(() => {});
+  } catch {}
 }
 
 function applyMusic() {
+  const music = ensureMusicAudio();
   if (!state.settings.soundEnabled) {
-    audios.music?.pause();
+    music.pause();
     return;
   }
-  if (state.userInteracted) ensureMusicAudio().play().catch(() => {});
+
+  if (!state.userInteracted) return;
+
+  try {
+    const result = music.play();
+    if (result?.catch) result.catch(() => {});
+  } catch {}
 }
 
 function update() {

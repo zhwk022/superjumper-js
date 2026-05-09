@@ -36,27 +36,21 @@ function drawWorld(ctx, canvas, images, cam, region, x, y, w, h, flipX = false) 
   drawRegion(ctx, images, region, point.x - screenWidth / 2, point.y - screenHeight / 2, screenWidth, screenHeight, flipX);
 }
 
+function drawFullscreenCroppedImage(ctx, canvas, image) {
+  const overscan = Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 2));
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, 0, 0, 320, 480, -overscan, -overscan, canvas.width + overscan * 2, canvas.height + overscan * 2);
+  ctx.restore();
+}
+
 function drawBg(ctx, canvas, images) {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (images.bg.complete) {
     // Match libGDX: only the 320x480 active content area should be rendered.
-    const overscan = Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 2));
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      images.bg,
-      0,
-      0,
-      320,
-      480,
-      -overscan,
-      -overscan,
-      canvas.width + overscan * 2,
-      canvas.height + overscan * 2
-    );
-    ctx.restore();
+    drawFullscreenCroppedImage(ctx, canvas, images.bg);
   } else {
     ctx.fillStyle = "#2f9cf5";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -152,7 +146,7 @@ export function renderApp({
 
   if (app === APP.help) {
     if (helps[helpIdx]?.naturalWidth > 0) {
-      ctx.drawImage(helps[helpIdx], ui.x, ui.y, ui.w * ui.scale, ui.h * ui.scale);
+      drawFullscreenCroppedImage(ctx, canvas, helps[helpIdx]);
     }
     drawUi(ctx, canvas, images, ui, atlas.arrow, 256, 0, 64, 64, true);
     return;
