@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { audioManifest, criticalImageAssets } from "../src/asset-manifest.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,14 +44,15 @@ async function buildCss() {
 
 async function copyOptimizedAsset(fileName) {
   const sourcePath = path.join(sourceDataDir, fileName);
-  const outputPath = path.join(docsDataDir, fileName === "music.mp3" ? "music.m4a" : fileName);
   const ext = path.extname(fileName).toLowerCase();
+  const musicConfig = audioManifest.music;
 
-  if (fileName === "music.mp3") {
-    await compressMusicAsset(sourcePath, outputPath);
+  if (fileName === musicConfig.buildSource) {
+    await buildMusicAssets(sourcePath, musicConfig);
     return;
   }
 
+  const outputPath = path.join(docsDataDir, fileName);
   if (ext !== ".png") {
     await copyFile(sourcePath, outputPath);
     return;
@@ -110,12 +112,28 @@ async function compressMusicAsset(sourcePath, outputPath) {
   });
 }
 
+async function buildMusicAssets(sourcePath, musicConfig) {
+  const optimizedPath = path.join(docsDataDir, musicConfig.optimizedFile);
+  const fallbackPath = path.join(docsDataDir, musicConfig.fallbackFile);
+
+  await copyFile(sourcePath, fallbackPath);
+
+  try {
+    await compressMusicAsset(sourcePath, optimizedPath);
+  } catch (error) {
+    console.warn(`Music compression skipped: ${error.message}`);
+  }
+}
+
 async function buildAssets() {
   const files = await readdir(sourceDataDir);
   await Promise.all(files.map((fileName) => copyOptimizedAsset(fileName)));
 }
 
 async function writeHtml() {
+  const preloadLinks = criticalImageAssets
+    .map(({ file }) => `    <link rel="preload" as="image" href="./assets/data/${file}" />`)
+    .join("\n");
   const html = `<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -125,8 +143,7 @@ async function writeHtml() {
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <title>SuperJumper HTML5</title>
-    <link rel="preload" as="image" href="./assets/data/background.png" />
-    <link rel="preload" as="image" href="./assets/data/items.png" />
+${preloadLinks}
     <link rel="stylesheet" href="./assets/style.min.css" />
   </head>
   <body>
@@ -146,16 +163,20 @@ async function writeBuildSummary() {
   const files = [
     path.join(docsAssetsDir, "app.min.js"),
     path.join(docsAssetsDir, "style.min.css"),
-    path.join(docsDataDir, "background.png"),
-    path.join(docsDataDir, "items.png"),
+    ...criticalImageAssets.map(({ file }) => path.join(docsDataDir, file)),
     path.join(docsDataDir, "music.m4a"),
+    path.join(docsDataDir, "music.mp3"),
   ];
 
   const lines = ["# Build Output", ""];
   for (const filePath of files) {
-    const info = await stat(filePath);
-    const relativePath = path.relative(rootDir, filePath);
-    lines.push(`- ${relativePath}: ${info.size} bytes`);
+    try {
+      const info = await stat(filePath);
+      const relativePath = path.relative(rootDir, filePath);
+      lines.push(`- ${relativePath}: ${info.size} bytes`);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
   }
 
   await writeFile(path.join(docsDir, "BUILD_STATS.md"), `${lines.join("\n")}\n`);

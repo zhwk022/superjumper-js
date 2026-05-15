@@ -1,13 +1,16 @@
+import { audioManifest, audios, criticalImageAssets, helpImageFiles } from "./asset-manifest.js";
+
 const DATA_BASE_URL = new URL("../assets/data/", import.meta.url);
-const HELP_IMAGE_COUNT = 5;
 
 export function dataUrl(path) {
   return new URL(path, DATA_BASE_URL).href;
 }
 
+export { audios };
+
 export const criticalAssets = {
   status: "loading",
-  total: 2,
+  total: criticalImageAssets.length,
   loaded: 0,
   error: null,
   startedAt: 0,
@@ -16,10 +19,10 @@ export const criticalAssets = {
 export const images = {
   bg: new Image(),
   items: new Image(),
-  helps: Array.from({ length: HELP_IMAGE_COUNT }, () => new Image()),
+  helps: Array.from({ length: helpImageFiles.length }, () => new Image()),
 };
 
-const helpImageRequested = Array.from({ length: HELP_IMAGE_COUNT }, () => false);
+const helpImageRequested = Array.from({ length: helpImageFiles.length }, () => false);
 
 function loadImage(img, src, label, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
@@ -64,13 +67,9 @@ export function beginCriticalAssetLoading() {
   criticalAssets.error = null;
   criticalAssets.startedAt = performance.now();
 
-  const bgSrc = dataUrl("background.png");
-  const itemsSrc = dataUrl("items.png");
-
-  Promise.all([
-    loadImage(images.bg, bgSrc, "background.png"),
-    loadImage(images.items, itemsSrc, "items.png"),
-  ])
+  Promise.all(
+    criticalImageAssets.map(({ key, file }) => loadImage(images[key], dataUrl(file), file)),
+  )
     .then(() => {
       criticalAssets.status = "ready";
     })
@@ -86,7 +85,7 @@ export function ensureHelpImage(index) {
 
   helpImageRequested[index] = true;
   img.decoding = "async";
-  img.src = dataUrl(`help${index + 1}.png`);
+  img.src = dataUrl(helpImageFiles[index]);
   return img;
 }
 
@@ -95,15 +94,6 @@ export function preloadHelpImages(startIndex, count = 2) {
     ensureHelpImage(i);
   }
 }
-
-export const audios = {
-  jump: "jump",
-  highJump: "highJump",
-  hit: "hit",
-  coin: "coin",
-  click: "click",
-  music: "music",
-};
 
 const audioElements = {
   jump: null,
@@ -114,36 +104,21 @@ const audioElements = {
   music: null,
 };
 
-const audioConfig = {
-  jump: { file: "jump.wav", volume: 0.7, loop: false },
-  highJump: { file: "highjump.wav", volume: 0.7, loop: false },
-  hit: { file: "hit.wav", volume: 0.7, loop: false },
-  coin: { file: "coin.wav", volume: 0.7, loop: false },
-  click: { file: "click.wav", volume: 0.7, loop: false },
-  music: { file: "music.mp3", volume: 0.45, loop: true },
-};
-
 export function ensureAudio(key) {
   if (audioElements[key]) return audioElements[key];
 
-  const config = audioConfig[key];
+  const config = audioManifest[key];
   if (!config) return null;
 
-  const audio = new Audio(dataUrl(config.file));
+  const audio = new Audio(dataUrl(config.sources[0]));
+  if (config.sources.length > 1) {
+    audio.innerHTML = config.sources
+      .map((source) => `<source src="${dataUrl(source)}" />`)
+      .join("");
+  }
   audio.volume = config.volume;
   audio.loop = config.loop;
   audio.preload = "none";
   audioElements[key] = audio;
   return audio;
-}
-
-export function ensureMusicAudio() {
-  if (audioElements.music) return audioElements.music;
-
-  const music = new Audio(dataUrl("music.m4a"));
-  music.volume = audioConfig.music.volume;
-  music.loop = audioConfig.music.loop;
-  music.preload = "none";
-  audioElements.music = music;
-  return music;
 }
